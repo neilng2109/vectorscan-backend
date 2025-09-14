@@ -1,0 +1,22 @@
+import pandas as pd
+import json
+
+data = pd.read_csv("C:/Users/neilg/vectorscan/venv/fault_data.csv")
+fine_tune_data = []
+
+for _, row in data.iterrows():
+    fault = str(row["Fault Description"])
+    equipment = str(row["Equipment Affected"])
+    cause = str(row["Cause (if known)"])
+    resolution = str(row["Resolution Action"])
+    context = f"Equipment: {equipment}\nFault: {fault}\nCause: {cause}\nResolution: {resolution}"
+    fine_tune_data.append({
+        "messages": [
+            {"role": "system", "content": f"You are a maritime fault diagnosis expert. Fault: {fault}\nContext: {context}"},
+            {"role": "assistant", "content": f"Diagnosis: {fault} condition detected.\nCause: {cause}\nResolution: {resolution}"}
+        ]
+    })
+
+with open("fault_dataset.jsonl", "w") as f:
+    for entry in fine_tune_data:
+        f.write(json.dumps(entry) + "\n")
