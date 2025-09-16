@@ -2,7 +2,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from dotenv import load_dotenv
+from dotenv import load_dotenv # Import load_dotenv
 from query_pinecone import query_fault_description
 
 # Load environment variables from a .env file for local development
@@ -17,10 +17,10 @@ allowed_origins_str = os.environ.get('CORS_ORIGINS')
 
 # 2. Provide a default for local development if the variable isn't set.
 if not allowed_origins_str:
-    # Use your local frontend's URL here (e.g., http://localhost:5173)
+    # Use your local frontend's URL here (check the port number, e.g., 5173)
     allowed_origins = ["http://localhost:5173"] 
 else:
-    # Split the string into a list of origins for production/staging
+    # Split the string into a list of origins
     allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
 
 print(f"CORS is configured for the following origins: {allowed_origins}")
@@ -29,11 +29,10 @@ print(f"CORS is configured for the following origins: {allowed_origins}")
 CORS(app, origins=allowed_origins, supports_credentials=True)
 # --- END OF NEW CONFIGURATION ---
 
-
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secure-key')
 jwt = JWTManager(app)
 
-# Your existing mock user database
+# Mock user database - Your users are preserved
 users = {
     'engineer_iona': {'password': 'pass123', 'role': 'ETO_Iona', 'ship': 'Iona'},
     'engineer_wonder': {'password': 'pass456', 'role': 'ETO_Wonder', 'ship': 'Wonder of the Seas'},
@@ -41,7 +40,7 @@ users = {
     'admin': {'password': 'admin123', 'role': 'Admin', 'ship': 'All'}
 }
 
-# Your existing routes remain the same
+# All your existing routes (/health, /login, etc.) remain exactly the same
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
@@ -140,4 +139,22 @@ def internal_error(error):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
+```
+
+### Your Next Steps
+
+1.  **Replace the Content:** Go to your `app.py` file, delete everything inside it, and paste the code from the file above.
+2.  **Save the file.**
+3.  **Finalize the Process:** Now that the file is fixed, run these final commands in your terminal to complete the process.
+
+    ```bash
+    # 1. Stage the file you just fixed. This tells Git the conflict is resolved.
+    git add app.py
+
+    # 2. Commit your changes. Git will know you're finishing the stash merge.
+    git commit -m "feat: Implement dynamic CORS configuration"
+
+    # 3. Push the final, correct version to GitHub.
+    git push origin fix/staging-cors
+    
 
