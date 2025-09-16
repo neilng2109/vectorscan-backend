@@ -105,7 +105,13 @@ def query_fault():
         
     except Exception as e:
         print(f"Query error: {str(e)}")
-        return jsonify({'error': 'An internal error occurred during the query.'}), 500
+        # This is a robust fallback for query errors
+        fallback_result = f"AI service temporarily unavailable. Please contact technical support."
+        return jsonify({
+            'result': fallback_result, 
+            'error': str(e),
+            'fallback': True
+        }), 500
 
 @app.route('/user', methods=['GET'])
 @jwt_required()
@@ -126,22 +132,4 @@ def internal_error(error):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-```
-
-### Your Next Steps
-
-1.  **Replace the Content:** Go to your `app.py` file, delete everything inside it (including all the conflict markers), and paste the code from the file above.
-2.  **Save the file.**
-3.  **Finalize the Merge:** Now that the file is fixed, run these final commands in your terminal to complete the process.
-
-    ```bash
-    # 1. Stage the file you just fixed. This tells Git the conflict is resolved.
-    git add app.py
-
-    # 2. Commit your changes. Git will know you're finishing the merge.
-    git commit -m "refactor: Consolidate Flask routes and resolve merge conflicts"
-
-    # 3. Push the final, correct version to GitHub.
-    git push origin fix/startup-crash
-    
 

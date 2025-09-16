@@ -20,11 +20,21 @@ def query_fault_description(fault_input, ship_filter):
     return result
 ```
 
-#### **Step 3: Deploy This Final Fix**
+### Your Next Steps
 
-1.  **Commit and push** your `fix/startup-crash` branch.
+1.  **Replace the Content of `app.py`:** Go to your `app.py` file, delete everything inside it (including all the conflict markers), and paste the code from the **"Updated app.py (Resolved Conflicts)"** file above.
+2.  **Replace the Content of `query_pinecone.py`:** Go to your `query_pinecone.py` file, delete everything inside it, and paste the code from the **"Simplified query_pinecone.py (Logic Only)"** file above.
+3.  **Save both files.**
+4.  **Finalize the Merge:** Now that the files are fixed, run these final commands in your terminal to complete the process.
+
     ```bash
+    # 1. Stage the files you just fixed. This tells Git the conflict is resolved.
     git add app.py query_pinecone.py
-    git commit -m "refactor: Consolidate Flask routes to fix startup crash"
+
+    # 2. Commit your changes. Git will know you're finishing the merge.
+    git commit -m "refactor: Consolidate Flask routes and resolve merge conflict"
+
+    # 3. Push the final, correct version to GitHub.
     git push origin fix/startup-crash
     
+
