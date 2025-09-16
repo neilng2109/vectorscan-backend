@@ -3,7 +3,6 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 from dotenv import load_dotenv
-# We now import the logic function directly from the simplified query_pinecone file
 from query_pinecone import query_fault_description
 
 # Load environment variables from a .env file for local development
@@ -14,19 +13,17 @@ app = Flask(__name__)
 # --- DYNAMIC CORS CONFIGURATION ---
 allowed_origins_str = os.environ.get('CORS_ORIGINS')
 if not allowed_origins_str:
-    # Default for local development
     allowed_origins = ["http://localhost:5173"] 
 else:
-    # Split the string into a list of origins for production/staging
     allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
 print(f"CORS is configured for the following origins: {allowed_origins}")
 CORS(app, origins=allowed_origins, supports_credentials=True)
 # --- END OF DYNAMIC CORS CONFIGURATION ---
 
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'default-super-secret-key-for-dev')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secure-key')
 jwt = JWTManager(app)
 
-# The more complete user database from the 'develop' branch
+# Mock user database
 users = {
     'engineer_iona': {'password': 'pass123', 'role': 'ETO_Iona', 'ship': 'Iona'},
     'engineer_wonder': {'password': 'pass456', 'role': 'ETO_Wonder', 'ship': 'Wonder of the Seas'},
@@ -43,7 +40,7 @@ def health_check():
 
 @app.route('/login', methods=['POST'])
 def login():
-    """Authentication endpoint with full error handling"""
+    """Authentication endpoint"""
     try:
         data = request.json
         if not data:
@@ -78,7 +75,6 @@ def login():
         print(f"Login error: {str(e)}")
         return jsonify({'error': f'Login error: {str(e)}'}), 500
 
-# The consolidated /query route
 @app.route('/query', methods=['POST'])
 @jwt_required()
 def query_fault():
@@ -93,7 +89,6 @@ def query_fault():
             
         fault_input = data.get('fault_description', '').strip()
         
-        # Call the clean logic function from our other file
         result = query_fault_description(fault_input, ship_filter=ship)
         
         return jsonify({
@@ -105,13 +100,12 @@ def query_fault():
         
     except Exception as e:
         print(f"Query error: {str(e)}")
-        # This is a robust fallback for query errors
-        fallback_result = f"AI service temporarily unavailable. Please contact technical support."
+        fallback_result = f"AI service temporarily unavailable. Fault logged: {request.json.get('fault_description', 'Unknown fault') if request.json else 'Unknown fault'} on {get_jwt_identity().get('ship', 'Unknown') if get_jwt_identity() else 'Unknown'}. Please contact technical support."
         return jsonify({
             'result': fallback_result, 
             'error': str(e),
             'fallback': True
-        }), 500
+        }), 200
 
 @app.route('/user', methods=['GET'])
 @jwt_required()
@@ -132,4 +126,3 @@ def internal_error(error):
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
-
