@@ -29,7 +29,7 @@ print(f"CORS is configured for the following origins: {allowed_origins}")
 CORS(app, origins=allowed_origins, supports_credentials=True)
 # --- END OF NEW CONFIGURATION ---
 
-app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secure-key')
+app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
 jwt = JWTManager(app)
 
 # Mock user database - Your users are preserved
@@ -111,8 +111,8 @@ def query_fault():
     except Exception as e:
         print(f"Query error: {str(e)}")
         current_user = get_jwt_identity()
-        ship = current_user.get('ship', 'Unknown')
-        fault_input = request.json.get('fault_input', 'Unknown fault') if request.json else 'Unknown fault'
+        ship = current_user.get('ship', 'Unknown') if current_user else 'Unknown'
+        fault_input = request.json.get('fault_description', 'Unknown fault') if request.json else 'Unknown fault'
         
         fallback_result = f"AI service temporarily unavailable. Fault logged: {fault_input} on {ship}. Please contact technical support."
         return jsonify({
@@ -128,6 +128,7 @@ def get_user():
     current_user = get_jwt_identity()
     return jsonify({'user': current_user}), 200
 
+# Error Handlers
 @app.errorhandler(404)
 def not_found(error):
     return jsonify({'error': 'Endpoint not found'}), 404
