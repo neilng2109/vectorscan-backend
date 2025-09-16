@@ -2,7 +2,7 @@ import os
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
-from dotenv import load_dotenv
+from dotenv import load_dotenv # Import load_dotenv
 from query_pinecone import query_fault_description
 
 # Load environment variables from a .env file for local development
@@ -10,20 +10,29 @@ load_dotenv()
 
 app = Flask(__name__)
 
-# --- DYNAMIC CORS CONFIGURATION ---
+# --- NEW DYNAMIC CORS CONFIGURATION ---
+# 1. Get the allowed origins from an environment variable.
+#    The string should be a comma-separated list of URLs.
 allowed_origins_str = os.environ.get('CORS_ORIGINS')
+
+# 2. Provide a default for local development if the variable isn't set.
 if not allowed_origins_str:
+    # Use your local frontend's URL here (check the port number, e.g., 5173)
     allowed_origins = ["http://localhost:5173"] 
 else:
+    # Split the string into a list of origins
     allowed_origins = [origin.strip() for origin in allowed_origins_str.split(',')]
+
 print(f"CORS is configured for the following origins: {allowed_origins}")
+
+# 3. Initialize CORS with the specific list of allowed origins.
 CORS(app, origins=allowed_origins, supports_credentials=True)
-# --- END OF DYNAMIC CORS CONFIGURATION ---
+# --- END OF NEW CONFIGURATION ---
 
 app.config['JWT_SECRET_KEY'] = os.environ.get('JWT_SECRET_KEY', 'your-secret-key')
 jwt = JWTManager(app)
 
-# Mock user database
+# Mock user database - Your users are preserved
 users = {
     'engineer_iona': {'password': 'pass123', 'role': 'ETO_Iona', 'ship': 'Iona'},
     'engineer_wonder': {'password': 'pass456', 'role': 'ETO_Wonder', 'ship': 'Wonder of the Seas'},
@@ -31,8 +40,7 @@ users = {
     'admin': {'password': 'admin123', 'role': 'Admin', 'ship': 'All'}
 }
 
-# --- API ROUTES ---
-
+# All your existing routes (/health, /login, etc.) remain exactly the same
 @app.route('/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
