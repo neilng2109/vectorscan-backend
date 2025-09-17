@@ -1,5 +1,6 @@
 import os
 import json
+import re
 from dotenv import load_dotenv
 from openai import OpenAI
 from pinecone import Pinecone
@@ -16,10 +17,10 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 
 def query_fault_description_safe(fault_input, ship_filter=None):
     """
-    Performs a RAG query and returns a simple, formatted string for the UI.
+    Performs a RAG query and returns a structured JSON for the UI.
     """
     if not PINECONE_API_KEY or not OPENAI_API_KEY:
-        return "Error: API keys not configured."
+        return {"error": "API keys not configured."}
 
     try:
         # Step 1: Create embedding for the user's input
@@ -35,38 +36,63 @@ def query_fault_description_safe(fault_input, ship_filter=None):
             filter=query_filter
         )
         
-        context = ""
+        # Parse similar faults into structured list
+        similar_faults = []
         if results.matches:
             for match in results.matches:
                 metadata = match.metadata
-                context += f"Similar fault: {metadata.get('fault', 'N/A')} on {metadata.get('equipment', 'N/A')} - {metadata.get('cause', 'N/A')}. Resolution: {metadata.get('resolution', 'N/A')}\n"
+                similar_faults.append({
+                    "equipment": metadata.get('equipment', 'N/A'),
+                    "fault": metadata.get('fault', 'N/A'),
+                    "resolution": metadata.get('resolution', 'N/A'),
+                    "date": metadata.get('date', 'N/A'),
+                    "id": metadata.get('id', None),
+                    "cause": metadata.get('cause', 'N/A')
+                })
+            context_for_prompt = "\n".join([
+                f"Equipment: {fault['equipment']} | Fault: {fault['fault']} | Cause: {fault['cause']} | Resolution: {fault['resolution']}" 
+                for fault in similar_faults
+            ])
         else:
-            context = "No similar faults found."
-        
-        # --- SIMPLE, STABLE PROMPT ---
+            context_for_prompt = "No similar faults found."
+
+        # --- RICH PROMPT ---
         prompt = (
             f"You are a maritime fault diagnosis expert.\n"
-            f"Fault: '{fault_input}'\n"
-            f"Similar past faults:\n{context}\n\n"
-            f"Provide a concise diagnosis with cause and resolution.\n"
-            f"Format as: **Diagnosis:** [text]\n"
-            f"**Cause:** [text]\n"
-            f"**Resolution:** [text]"
+            f"Fault description: '{fault_input}'\n"
+            f"Similar past faults:\n{context_for_prompt}\n\n"
+            f"Reply with:\n"
+            f"Title: [short fault diagnosis title]\n"
+            f"Diagnosis: [single sentence]\n"
+            f"Recommended Actions:\n- [action 1]\n- [action 2]\n- [action 3]\n"
         )
 
         ai_response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200 
+            max_tokens=300
         )
-        
-        diagnosis = ai_response.choices[0].message.content.strip()
-        
-        # Add a simple status footer
-        diagnosis += "\n\n**Status:** AI-powered response with Pinecone similarity search"
-        
-        return diagnosis
+        ai_text = ai_response.choices[0].message.content.strip()
+
+        # Parse AI response into fields
+        title_match = re.search(r"Title:\s*(.*)", ai_text)
+        diagnosis_match = re.search(r"Diagnosis:\s*(.*)", ai_text)
+        actions_match = re.search(r"Recommended Actions:\s*((?:- .*\n?)+)", ai_text)
+
+        fault_title = title_match.group(1).strip() if title_match else fault_input + " Diagnosis"
+        diagnosis = diagnosis_match.group(1).strip() if diagnosis_match else ""
+        actions = []
+        if actions_match:
+            actions = [line[2:].strip() for line in actions_match.group(1).strip().splitlines() if line.startswith('- ')]
+        status = "AI-powered response with Pinecone similarity search"
+
+        return {
+            "fault_title": fault_title,
+            "diagnosis": diagnosis,
+            "recommended_actions": actions,
+            "similar_faults": similar_faults,
+            "status": status
+        }
 
     except Exception as e:
-        return f"Error during AI query: {str(e)}."
-
+        return {"error": f"Error during AI query: {str(e)}."}
