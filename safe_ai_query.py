@@ -18,6 +18,7 @@ openai_client = OpenAI(api_key=OPENAI_API_KEY)
 def query_fault_description_safe(fault_input, ship_filter=None):
     """
     Performs a RAG query and returns a structured JSON for the UI.
+    Provides diagnostic guidance from local equipment history.
     """
     if not PINECONE_API_KEY or not OPENAI_API_KEY:
         return {"error": "API keys not configured."}
@@ -56,40 +57,52 @@ def query_fault_description_safe(fault_input, ship_filter=None):
         else:
             context_for_prompt = "No similar faults found."
 
-        # --- RICH PROMPT ---
+        # --- IMPROVED PROMPT: Detailed diagnosis and step-by-step troubleshooting ---
         prompt = (
-            f"You are a maritime fault diagnosis expert.\n"
+            "You are a maritime fault diagnosis expert. "
+            "Based only on the provided fault description and the historical fault context below, "
+            "provide actionable diagnostic guidance for ship engineers.\n"
             f"Fault description: '{fault_input}'\n"
-            f"Similar past faults:\n{context_for_prompt}\n\n"
-            f"Reply with:\n"
-            f"Title: [short fault diagnosis title]\n"
-            f"Diagnosis: [single sentence]\n"
-            f"Recommended Actions:\n- [action 1]\n- [action 2]\n- [action 3]\n"
+            f"Similar past faults from planned maintenance database:\n{context_for_prompt}\n\n"
+            "Reply in this structured format:\n"
+            "Title: [short fault diagnosis title]\n"
+            "Diagnosis: [detailed explanation, including likely causes and any relevant context from similar faults]\n"
+            "Step-by-Step Troubleshooting:\n- [step 1]\n- [step 2]\n- [step 3]\n"
+            "Recommended Actions:\n- [action 1]\n- [action 2]\n- [action 3]\n"
+            "Only use information from the fault description and provided local history. Do not invent unrelated preventive measures or extra sections."
         )
 
         ai_response = openai_client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=300
+            max_tokens=500
         )
         ai_text = ai_response.choices[0].message.content.strip()
 
-        # Parse AI response into fields
+        # --- Parse AI response into structured fields ---
         title_match = re.search(r"Title:\s*(.*)", ai_text)
         diagnosis_match = re.search(r"Diagnosis:\s*(.*)", ai_text)
+        troubleshooting_match = re.search(r"Step-by-Step Troubleshooting:\s*((?:- .*\n?)+)", ai_text)
         actions_match = re.search(r"Recommended Actions:\s*((?:- .*\n?)+)", ai_text)
 
         fault_title = title_match.group(1).strip() if title_match else fault_input + " Diagnosis"
         diagnosis = diagnosis_match.group(1).strip() if diagnosis_match else ""
-        actions = []
+        
+        troubleshooting_steps = []
+        if troubleshooting_match:
+            troubleshooting_steps = [line[2:].strip() for line in troubleshooting_match.group(1).strip().splitlines() if line.startswith('- ')]
+
+        recommended_actions = []
         if actions_match:
-            actions = [line[2:].strip() for line in actions_match.group(1).strip().splitlines() if line.startswith('- ')]
+            recommended_actions = [line[2:].strip() for line in actions_match.group(1).strip().splitlines() if line.startswith('- ')]
+
         status = "AI-powered response with Pinecone similarity search"
 
         return {
             "fault_title": fault_title,
             "diagnosis": diagnosis,
-            "recommended_actions": actions,
+            "troubleshooting_steps": troubleshooting_steps,
+            "recommended_actions": recommended_actions,
             "similar_faults": similar_faults,
             "status": status
         }
